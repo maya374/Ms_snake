@@ -56,9 +56,9 @@
   </div>  <div class="options">
     <label for="difficulty" style="margin-right: 5px;">🎮 Difficulty:</label>
     <select id="difficulty" onchange="setDifficulty(this.value)">
-      <option value="10">Easy</option>
-      <option value="6" selected>Normal</option>
-      <option value="3">Hard</option>
+      <option value="14">Easy</option>
+      <option value="10" selected>Normal</option>
+      <option value="6">Hard</option>
     </select><label for="snakeColor" style="margin-left: 10px;">🐍 Color:</label>
 <select id="snakeColor" onchange="changeSnakeColor(this.value)">
   <option value="lime">Green</option>
@@ -80,7 +80,7 @@
 
     let grid = 20;
     let count = 0;
-    let speed = 6;
+    let speed = 10;
     let paused = false;
     let score = 0;
     let highScore = localStorage.getItem("snakeHighScore") || 0;
@@ -248,3 +248,9 @@
     requestAnimationFrame(gameLoop);
   </script></body>
 </html>
+
+    
+
+    
+
+    
