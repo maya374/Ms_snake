@@ -1,71 +1,91 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Snake Game Touch V2</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Maya Snake Game</title>
   <style>
     body {
-      background: #111;
+      background-color: #000;
       color: white;
       text-align: center;
       font-family: sans-serif;
     }
     canvas {
-      background: #000;
-      display: block;
+      background-color: #111;
       margin: 10px auto;
+      display: block;
+      border: 2px solid white;
     }
-    .controls {
+    .controls, .options {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
       gap: 10px;
       margin: 10px auto;
-      width: 220px;
     }
     .btn {
-      padding: 15px 25px;
-      font-size: 18px;
-      background: #444;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #222;
       color: white;
-      border: none;
+      border: 2px solid #555;
       border-radius: 8px;
     }
     .btn:active {
-      background: #666;
+      background: #444;
     }
-    #score {
-      font-size: 18px;
-      margin-top: 5px;
+    #score, #highScore {
+      margin: 5px;
     }
   </style>
 </head>
 <body>
-  <h1>Snake Game - Touch V2</h1>
-  <canvas id="game" width="400" height="400"></canvas>
+  <h1>🐍 Maya Snake Game</h1>
   <div id="score">Score: 0</div>
-
-  <div class="controls">
+  <div id="highScore">High Score: 0</div>
+  <canvas id="game" width="400" height="400"></canvas>  <div class="controls">
     <button class="btn" onclick="move('up')">⬆️</button><br>
     <button class="btn" onclick="move('left')">⬅️</button>
     <button class="btn" onclick="move('down')">⬇️</button>
     <button class="btn" onclick="move('right')">➡️</button>
-  </div>
+  </div>  <div class="controls">
+    <button class="btn" onclick="togglePause()">⏸️ Pause</button>
+    <button class="btn" onclick="resetGame()">🔁 Restart</button>
+    <button class="btn" onclick="toggleTheme()">🌓 Theme</button>
+    <button class="btn" onclick="toggleMusic()">🎵 Music</button>
+  </div>  <div class="options">
+    <label for="difficulty" style="margin-right: 5px;">🎮 Difficulty:</label>
+    <select id="difficulty" onchange="setDifficulty(this.value)">
+      <option value="10">Easy</option>
+      <option value="6" selected>Normal</option>
+      <option value="3">Hard</option>
+    </select><label for="snakeColor" style="margin-left: 10px;">🐍 Color:</label>
+<select id="snakeColor" onchange="changeSnakeColor(this.value)">
+  <option value="lime">Green</option>
+  <option value="cyan">Cyan</option>
+  <option value="yellow">Yellow</option>
+  <option value="magenta">Pink</option>
+</select>
 
-  <!-- Sounds -->
-  <audio id="eatSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
-  <audio id="deadSound" src="https://www.soundjay.com/button/beep-10.wav"></audio>
+  </div><audio id="eatSound" src="https://www.soundjay.com/button/beep-07.wav"></audio> <audio id="deadSound" src="https://www.soundjay.com/button/beep-10.wav"></audio> <audio id="bgMusic" src="https://www.bensound.com/bensound-music/bensound-dubstep.mp3" loop></audio>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
     const scoreText = document.getElementById("score");
-
-    const grid = 20;
-    let count = 0;
-    let score = 0;
+    const highScoreText = document.getElementById("highScore");
     const eatSound = document.getElementById("eatSound");
     const deadSound = document.getElementById("deadSound");
+    const bgMusic = document.getElementById("bgMusic");
+
+    let grid = 20;
+    let count = 0;
+    let speed = 6;
+    let paused = false;
+    let score = 0;
+    let highScore = localStorage.getItem("snakeHighScore") || 0;
+    let snakeColor = "lime";
+    highScoreText.innerText = "High Score: " + highScore;
 
     let snake = {
       x: 160,
@@ -80,13 +100,66 @@
       y: 320
     };
 
+    const fireParticles = [];
+
     function getRandomInt(min, max) {
       return Math.floor(Math.random() * (max - min)) + min;
     }
 
+    function placeApple() {
+      let valid = false;
+      while (!valid) {
+        apple.x = getRandomInt(0, 20) * grid;
+        apple.y = getRandomInt(0, 20) * grid;
+        valid = !snake.cells.some(cell => cell.x === apple.x && cell.y === apple.y);
+      }
+    }
+
+    function togglePause() {
+      paused = !paused;
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light");
+      document.body.style.backgroundColor = document.body.classList.contains("light") ? "#fff" : "#000";
+      document.body.style.color = document.body.classList.contains("light") ? "#000" : "#fff";
+    }
+
+    function toggleMusic() {
+      if (bgMusic.paused) {
+        bgMusic.play();
+      } else {
+        bgMusic.pause();
+      }
+    }
+
+    function setDifficulty(val) {
+      speed = parseInt(val);
+    }
+
+    function changeSnakeColor(val) {
+      snakeColor = val;
+    }
+
+    function move(dir) {
+      if (dir === "left" && snake.dx === 0) {
+        snake.dx = -grid; snake.dy = 0;
+      } else if (dir === "right" && snake.dx === 0) {
+        snake.dx = grid; snake.dy = 0;
+      } else if (dir === "up" && snake.dy === 0) {
+        snake.dy = -grid; snake.dx = 0;
+      } else if (dir === "down" && snake.dy === 0) {
+        snake.dy = grid; snake.dx = 0;
+      }
+    }
+
     function resetGame() {
       deadSound.play();
-      alert("Game Over! Score: " + score);
+      if (score > highScore) {
+        localStorage.setItem("snakeHighScore", score);
+        highScore = score;
+        highScoreText.innerText = "High Score: " + highScore;
+      }
       score = 0;
       scoreText.innerText = "Score: 0";
       snake.x = 160;
@@ -95,54 +168,71 @@
       snake.dy = 0;
       snake.cells = [];
       snake.maxCells = 4;
-      apple.x = getRandomInt(0, 20) * grid;
-      apple.y = getRandomInt(0, 20) * grid;
+      speed = parseInt(document.getElementById("difficulty").value);
+      placeApple();
+    }
+
+    function drawFire(x, y) {
+      for (let i = 0; i < 5; i++) {
+        fireParticles.push({
+          x: x + grid / 2,
+          y: y + grid / 2,
+          dx: (Math.random() - 0.5) * 4,
+          dy: (Math.random() - 0.5) * 4,
+          alpha: 1
+        });
+      }
+    }
+
+    function updateFire() {
+      for (let i = 0; i < fireParticles.length; i++) {
+        const p = fireParticles[i];
+        ctx.fillStyle = `rgba(255, 100, 0, ${p.alpha})`;
+        ctx.fillRect(p.x, p.y, 2, 2);
+        p.x += p.dx;
+        p.y += p.dy;
+        p.alpha -= 0.05;
+      }
+      while (fireParticles.length > 0 && fireParticles[0].alpha <= 0) {
+        fireParticles.shift();
+      }
     }
 
     function gameLoop() {
       requestAnimationFrame(gameLoop);
+      if (paused) return;
 
-      // Slower speed
-      if (++count < 10) return;
+      if (++count < speed) return;
       count = 0;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       snake.x += snake.dx;
       snake.y += snake.dy;
 
-      // Wall collision (no wrap)
-      if (
-        snake.x < 0 || snake.x >= canvas.width ||
-        snake.y < 0 || snake.y >= canvas.height
-      ) {
+      if (snake.x < 0 || snake.x >= canvas.width || snake.y < 0 || snake.y >= canvas.height) {
         resetGame();
         return;
       }
 
       snake.cells.unshift({ x: snake.x, y: snake.y });
-      if (snake.cells.length > snake.maxCells) {
-        snake.cells.pop();
-      }
+      if (snake.cells.length > snake.maxCells) snake.cells.pop();
 
       ctx.fillStyle = "red";
       ctx.fillRect(apple.x, apple.y, grid - 1, grid - 1);
 
-      ctx.fillStyle = "lime";
+      ctx.fillStyle = snakeColor;
       snake.cells.forEach(function (cell, index) {
         ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1);
 
-        // Apple eaten
         if (cell.x === apple.x && cell.y === apple.y) {
           eatSound.play();
+          drawFire(apple.x, apple.y);
           snake.maxCells++;
           score++;
           scoreText.innerText = "Score: " + score;
-          apple.x = getRandomInt(0, 20) * grid;
-          apple.y = getRandomInt(0, 20) * grid;
+          placeApple();
         }
 
-        // Collision with self
         for (let i = index + 1; i < snake.cells.length; i++) {
           if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
             resetGame();
@@ -150,25 +240,11 @@
           }
         }
       });
+
+      updateFire();
     }
 
-    function move(dir) {
-      if (dir === "left" && snake.dx === 0) {
-        snake.dx = -grid;
-        snake.dy = 0;
-      } else if (dir === "right" && snake.dx === 0) {
-        snake.dx = grid;
-        snake.dy = 0;
-      } else if (dir === "up" && snake.dy === 0) {
-        snake.dy = -grid;
-        snake.dx = 0;
-      } else if (dir === "down" && snake.dy === 0) {
-        snake.dy = grid;
-        snake.dx = 0;
-      }
-    }
-
+    resetGame();
     requestAnimationFrame(gameLoop);
-  </script>
-</body>
+  </script></body>
 </html>
