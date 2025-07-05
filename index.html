@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Snake Game Touch V2</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      text-align: center;
+      font-family: sans-serif;
+    }
+    canvas {
+      background: #000;
+      display: block;
+      margin: 10px auto;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px auto;
+      width: 220px;
+    }
+    .btn {
+      padding: 15px 25px;
+      font-size: 18px;
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+    .btn:active {
+      background: #666;
+    }
+    #score {
+      font-size: 18px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Snake Game - Touch V2</h1>
+  <canvas id="game" width="400" height="400"></canvas>
+  <div id="score">Score: 0</div>
+
+  <div class="controls">
+    <button class="btn" onclick="move('up')">⬆️</button><br>
+    <button class="btn" onclick="move('left')">⬅️</button>
+    <button class="btn" onclick="move('down')">⬇️</button>
+    <button class="btn" onclick="move('right')">➡️</button>
+  </div>
+
+  <!-- Sounds -->
+  <audio id="eatSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+  <audio id="deadSound" src="https://www.soundjay.com/button/beep-10.wav"></audio>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreText = document.getElementById("score");
+
+    const grid = 20;
+    let count = 0;
+    let score = 0;
+    const eatSound = document.getElementById("eatSound");
+    const deadSound = document.getElementById("deadSound");
+
+    let snake = {
+      x: 160,
+      y: 160,
+      dx: grid,
+      dy: 0,
+      cells: [],
+      maxCells: 4
+    };
+    let apple = {
+      x: 320,
+      y: 320
+    };
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min)) + min;
+    }
+
+    function resetGame() {
+      deadSound.play();
+      alert("Game Over! Score: " + score);
+      score = 0;
+      scoreText.innerText = "Score: 0";
+      snake.x = 160;
+      snake.y = 160;
+      snake.dx = grid;
+      snake.dy = 0;
+      snake.cells = [];
+      snake.maxCells = 4;
+      apple.x = getRandomInt(0, 20) * grid;
+      apple.y = getRandomInt(0, 20) * grid;
+    }
+
+    function gameLoop() {
+      requestAnimationFrame(gameLoop);
+
+      // Slower speed
+      if (++count < 10) return;
+      count = 0;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      snake.x += snake.dx;
+      snake.y += snake.dy;
+
+      // Wall collision (no wrap)
+      if (
+        snake.x < 0 || snake.x >= canvas.width ||
+        snake.y < 0 || snake.y >= canvas.height
+      ) {
+        resetGame();
+        return;
+      }
+
+      snake.cells.unshift({ x: snake.x, y: snake.y });
+      if (snake.cells.length > snake.maxCells) {
+        snake.cells.pop();
+      }
+
+      ctx.fillStyle = "red";
+      ctx.fillRect(apple.x, apple.y, grid - 1, grid - 1);
+
+      ctx.fillStyle = "lime";
+      snake.cells.forEach(function (cell, index) {
+        ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1);
+
+        // Apple eaten
+        if (cell.x === apple.x && cell.y === apple.y) {
+          eatSound.play();
+          snake.maxCells++;
+          score++;
+          scoreText.innerText = "Score: " + score;
+          apple.x = getRandomInt(0, 20) * grid;
+          apple.y = getRandomInt(0, 20) * grid;
+        }
+
+        // Collision with self
+        for (let i = index + 1; i < snake.cells.length; i++) {
+          if (cell.x === snake.cells[i].x && cell.y === snake.cells[i].y) {
+            resetGame();
+            return;
+          }
+        }
+      });
+    }
+
+    function move(dir) {
+      if (dir === "left" && snake.dx === 0) {
+        snake.dx = -grid;
+        snake.dy = 0;
+      } else if (dir === "right" && snake.dx === 0) {
+        snake.dx = grid;
+        snake.dy = 0;
+      } else if (dir === "up" && snake.dy === 0) {
+        snake.dy = -grid;
+        snake.dx = 0;
+      } else if (dir === "down" && snake.dy === 0) {
+        snake.dy = grid;
+        snake.dx = 0;
+      }
+    }
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
