@@ -1,22 +1,28 @@
 <!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maya Snake Game</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Maya Snake Game with Missions</title>
   <style>
     body {
       background-color: #000;
       color: white;
       text-align: center;
       font-family: sans-serif;
+      margin: 0;
+      padding: 0;
     }
     canvas {
       background-color: #111;
-      margin: 10px auto;
       display: block;
+      margin: 10px auto;
       border: 2px solid white;
+      width: 90vw;
+      max-width: 400px;
+      height: auto;
+      touch-action: none;
     }
-    .controls, .options {
+    .controls {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
@@ -34,58 +40,60 @@
     .btn:active {
       background: #444;
     }
-    #score, #highScore {
-      margin: 5px;
+    #flash {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: red;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 999;
     }
   </style>
 </head>
 <body>
+  <div id="flash"></div>
   <h1>🐍 Maya Snake Game</h1>
   <div id="score">Score: 0</div>
   <div id="highScore">High Score: 0</div>
-  <canvas id="game" width="400" height="400"></canvas>  <div class="controls">
+  <div id="missionStatus">🎯 Mission: Eat 3 apples in 20s</div>
+  <canvas id="game"></canvas>  <div class="controls">
     <button class="btn" onclick="move('up')">⬆️</button><br>
     <button class="btn" onclick="move('left')">⬅️</button>
     <button class="btn" onclick="move('down')">⬇️</button>
     <button class="btn" onclick="move('right')">➡️</button>
-  </div>  <div class="controls">
+  </div>
+  <div class="controls">
     <button class="btn" onclick="togglePause()">⏸️ Pause</button>
     <button class="btn" onclick="resetGame()">🔁 Restart</button>
-    <button class="btn" onclick="toggleTheme()">🌓 Theme</button>
     <button class="btn" onclick="toggleMusic()">🎵 Music</button>
-  </div>  <div class="options">
-    <label for="difficulty" style="margin-right: 5px;">🎮 Difficulty:</label>
-    <select id="difficulty" onchange="setDifficulty(this.value)">
-      <option value="14">Easy</option>
-      <option value="10" selected>Normal</option>
-      <option value="6">Hard</option>
-    </select><label for="snakeColor" style="margin-left: 10px;">🐍 Color:</label>
-<select id="snakeColor" onchange="changeSnakeColor(this.value)">
-  <option value="lime">Green</option>
-  <option value="cyan">Cyan</option>
-  <option value="yellow">Yellow</option>
-  <option value="magenta">Pink</option>
-</select>
-
-  </div><audio id="eatSound" src="https://www.soundjay.com/button/beep-07.wav"></audio> <audio id="deadSound" src="https://www.soundjay.com/button/beep-10.wav"></audio> <audio id="bgMusic" src="https://www.bensound.com/bensound-music/bensound-dubstep.mp3" loop></audio>
+  </div><audio id="eatSound" src="https://www.soundjay.com/button/beep-07.wav"></audio> <audio id="deadSound" src="https://www.soundjay.com/button/beep-10.wav"></audio> <audio id="oopsSound" src="https://www.myinstants.com/media/sounds/oof.mp3"></audio> <audio id="bgMusic" src="https://www.bensound.com/bensound-music/bensound-dubstep.mp3" loop></audio>
 
   <script>
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientWidth;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
     const scoreText = document.getElementById("score");
     const highScoreText = document.getElementById("highScore");
+    const missionStatus = document.getElementById("missionStatus");
+    const flash = document.getElementById("flash");
     const eatSound = document.getElementById("eatSound");
     const deadSound = document.getElementById("deadSound");
+    const oopsSound = document.getElementById("oopsSound");
     const bgMusic = document.getElementById("bgMusic");
 
-    let grid = 20;
-    let count = 0;
-    let speed = 10;
-    let paused = false;
-    let score = 0;
+    let grid = 20, count = 0, speed = 10, paused = false, score = 0;
     let highScore = localStorage.getItem("snakeHighScore") || 0;
-    let snakeColor = "lime";
-    highScoreText.innerText = "High Score: " + highScore;
+    let apple = { x: 320, y: 320 };
+    let mission = { applesRequired: 3, timeLimit: 20, startTime: null, collected: 0, completed: false };
 
     let snake = {
       x: 160,
@@ -95,66 +103,36 @@
       cells: [],
       maxCells: 4
     };
-    let apple = {
-      x: 320,
-      y: 320
-    };
 
-    const fireParticles = [];
-
-    function getRandomInt(min, max) {
-      return Math.floor(Math.random() * (max - min)) + min;
-    }
+    highScoreText.innerText = "High Score: " + highScore;
 
     function placeApple() {
-      let valid = false;
-      while (!valid) {
-        apple.x = getRandomInt(0, 20) * grid;
-        apple.y = getRandomInt(0, 20) * grid;
-        valid = !snake.cells.some(cell => cell.x === apple.x && cell.y === apple.y);
-      }
+      apple.x = Math.floor(Math.random() * 20) * grid;
+      apple.y = Math.floor(Math.random() * 20) * grid;
     }
 
     function togglePause() {
       paused = !paused;
     }
 
-    function toggleTheme() {
-      document.body.classList.toggle("light");
-      document.body.style.backgroundColor = document.body.classList.contains("light") ? "#fff" : "#000";
-      document.body.style.color = document.body.classList.contains("light") ? "#000" : "#fff";
-    }
-
     function toggleMusic() {
-      if (bgMusic.paused) {
-        bgMusic.play();
-      } else {
-        bgMusic.pause();
-      }
-    }
-
-    function setDifficulty(val) {
-      speed = parseInt(val);
-    }
-
-    function changeSnakeColor(val) {
-      snakeColor = val;
+      if (bgMusic.paused) bgMusic.play();
+      else bgMusic.pause();
     }
 
     function move(dir) {
-      if (dir === "left" && snake.dx === 0) {
-        snake.dx = -grid; snake.dy = 0;
-      } else if (dir === "right" && snake.dx === 0) {
-        snake.dx = grid; snake.dy = 0;
-      } else if (dir === "up" && snake.dy === 0) {
-        snake.dy = -grid; snake.dx = 0;
-      } else if (dir === "down" && snake.dy === 0) {
-        snake.dy = grid; snake.dx = 0;
-      }
+      if (dir === "left" && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
+      else if (dir === "right" && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
+      else if (dir === "up" && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
+      else if (dir === "down" && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
     }
 
     function resetGame() {
       deadSound.play();
+      oopsSound.play();
+      flash.style.opacity = 0.8;
+      setTimeout(() => flash.style.opacity = 0, 300);
+
       if (score > highScore) {
         localStorage.setItem("snakeHighScore", score);
         highScore = score;
@@ -168,44 +146,22 @@
       snake.dy = 0;
       snake.cells = [];
       snake.maxCells = 4;
-      speed = parseInt(document.getElementById("difficulty").value);
+
+      mission.startTime = Date.now();
+      mission.collected = 0;
+      mission.completed = false;
+      missionStatus.innerText = `🎯 Mission: Eat ${mission.applesRequired} apples in ${mission.timeLimit}s`;
       placeApple();
-    }
-
-    function drawFire(x, y) {
-      for (let i = 0; i < 5; i++) {
-        fireParticles.push({
-          x: x + grid / 2,
-          y: y + grid / 2,
-          dx: (Math.random() - 0.5) * 4,
-          dy: (Math.random() - 0.5) * 4,
-          alpha: 1
-        });
-      }
-    }
-
-    function updateFire() {
-      for (let i = 0; i < fireParticles.length; i++) {
-        const p = fireParticles[i];
-        ctx.fillStyle = `rgba(255, 100, 0, ${p.alpha})`;
-        ctx.fillRect(p.x, p.y, 2, 2);
-        p.x += p.dx;
-        p.y += p.dy;
-        p.alpha -= 0.05;
-      }
-      while (fireParticles.length > 0 && fireParticles[0].alpha <= 0) {
-        fireParticles.shift();
-      }
     }
 
     function gameLoop() {
       requestAnimationFrame(gameLoop);
       if (paused) return;
-
       if (++count < speed) return;
       count = 0;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       snake.x += snake.dx;
       snake.y += snake.dy;
 
@@ -220,17 +176,24 @@
       ctx.fillStyle = "red";
       ctx.fillRect(apple.x, apple.y, grid - 1, grid - 1);
 
-      ctx.fillStyle = snakeColor;
+      ctx.fillStyle = "lime";
       snake.cells.forEach(function (cell, index) {
         ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1);
 
         if (cell.x === apple.x && cell.y === apple.y) {
           eatSound.play();
-          drawFire(apple.x, apple.y);
           snake.maxCells++;
           score++;
           scoreText.innerText = "Score: " + score;
           placeApple();
+
+          if (!mission.completed && Date.now() - mission.startTime < mission.timeLimit * 1000) {
+            mission.collected++;
+            if (mission.collected >= mission.applesRequired) {
+              mission.completed = true;
+              missionStatus.innerText = "✅ Mission complete!";
+            }
+          }
         }
 
         for (let i = index + 1; i < snake.cells.length; i++) {
@@ -241,16 +204,12 @@
         }
       });
 
-      updateFire();
+      if (!mission.completed && mission.startTime && Date.now() - mission.startTime > mission.timeLimit * 1000) {
+        missionStatus.innerText = "❌ Mission failed! Try again.";
+      }
     }
 
     resetGame();
     requestAnimationFrame(gameLoop);
   </script></body>
 </html>
-
-    
-
-    
-
-    
